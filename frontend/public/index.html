@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Farm Workforce & Operations Management System">
+    <meta name="theme-color" content="#1f2937">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="FarmHandPro">
+    
+    <title>FarmHandPro - Farm Management</title>
+    
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    
+    <script defer src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- API Configuration -->
+    <script>
+        // Set API base URL for development
+        window.API_BASE = window.location.hostname === 'localhost' && window.location.port === '3000'
+            ? 'http://localhost:8000/api'
+            : '/api';
+    </script>
+</head>
+<body class="bg-gray-50" x-data="app()" @online.window="handleOnline()" @offline.window="handleOffline()">
+    <div id="app" class="min-h-screen flex flex-col">
+        <!-- Login View -->
+        <div x-show="!authenticated && !loading" class="flex flex-col min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
+            <div class="flex-1 flex items-center justify-center px-4 py-6">
+                <div class="w-full max-w-md">
+                    <!-- Logo & Title -->
+                    <div class="text-center mb-8">
+                        <h1 class="text-4xl font-bold text-green-700 mb-2">🌾 FarmHandPro</h1>
+                        <p class="text-gray-600">Farm Management System</p>
+                    </div>
+
+                    <!-- Login Card -->
+                    <div class="bg-white rounded-lg shadow-lg p-6 space-y-4">
+                        <h2 class="text-2xl font-bold text-gray-900 mb-6">Welcome Back</h2>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                            <input x-model="loginForm.email" type="email" placeholder="your@email.com"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                            <input x-model="loginForm.password" type="password" placeholder="••••••••"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
+                        </div>
+
+                        <button @click="handleLogin()" :disabled="loginLoading"
+                            class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 active:scale-95 transition disabled:bg-gray-400">
+                            <span x-show="!loginLoading">Sign In</span>
+                            <span x-show="loginLoading">Signing in...</span>
+                        </button>
+
+                        <p x-show="loginError" class="text-red-600 text-sm text-center" x-text="loginError"></p>
+
+                        <div class="relative">
+                            <div class="absolute inset-0 flex items-center">
+                                <div class="w-full border-t border-gray-300"></div>
+                            </div>
+                            <div class="relative flex justify-center text-sm">
+                                <span class="px-2 bg-white text-gray-500">or</span>
+                            </div>
+                        </div>
+
+                        <button @click="showRegisterForm = true"
+                            class="w-full border-2 border-green-600 text-green-600 py-2 rounded-lg font-semibold hover:bg-green-50 active:scale-95 transition">
+                            Create Account
+                        </button>
+                    </div>
+
+                    <!-- Demo Credentials Info -->
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6 text-sm text-blue-900">
+                        <p class="font-semibold mb-2">Demo Credentials</p>
+                        <p>Email: worker1@farm.local</p>
+                        <p>Password: password</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div x-show="loading && !authenticated" class="flex flex-col min-h-screen items-center justify-center bg-gray-50">
+            <div class="animate-spin text-4xl mb-4">🔄</div>
+            <p class="text-gray-600">Loading...</p>
+        </div>
+
+        <!-- Main App (when authenticated) -->
+        <template x-if="authenticated">
+            <!-- Header -->
+            <div class="flex flex-col min-h-screen">
+                <header class="bg-white border-b border-gray-200 sticky top-0 z-40">
+                    <div class="max-w-md mx-auto px-4 py-4 flex justify-between items-center">
+                        <h1 class="text-xl font-bold text-green-700">🌾 FarmHandPro</h1>
+                        <div class="flex gap-2">
+                            <button @click="refreshData()" class="text-gray-600 hover:text-gray-900" :disabled="loading">
+                                🔄
+                            </button>
+                            <button @click="toggleSettings()" class="text-gray-600 hover:text-gray-900">
+                                ⚙️
+                            </button>
+                        </div>
+                    </div>
+                </header>
+
+            <!-- Main Content -->
+                <main class="flex-1 max-w-md mx-auto w-full px-4 pb-24">
+                    <!-- Loading State -->
+                    <div x-show="contentLoading" class="flex items-center justify-center py-8">
+                        <div class="animate-spin">⏳</div>
+                    </div>
+
+                    <!-- Dashboard View -->
+                    <div x-show="!contentLoading && currentView === 'dashboard'" class="space-y-6 py-6">
+                        <!-- User Header -->
+                        <div class="bg-white rounded-lg p-4 border border-gray-200">
+                            <p class="text-sm text-gray-600">Welcome back,</p>
+                            <h2 class="text-2xl font-bold text-gray-900" x-text="user?.name"></h2>
+                            <p class="text-sm text-gray-500" x-text="getCurrentDate()"></p>
+                        </div>
+
+                        <!-- Status Card -->
+                        <div class="bg-white rounded-lg p-6 border border-gray-200">
+                            <p class="text-sm text-gray-600 mb-4">Clock Status</p>
+                            <div class="mb-6 text-center">
+                                <span class="inline-block px-4 py-2 rounded-full text-sm font-semibold"
+                                    :class="isClocked ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'"
+                                    x-text="isClocked ? '✓ Clocked In' : '⊘ Clocked Out'">
+                                </span>
+                            </div>
+
+                            <!-- Clock In/Out Button -->
+                            <button @click="clockIn()" 
+                                x-show="!isClocked && !loadingAction"
+                                class="w-full bg-green-600 text-white py-4 rounded-lg font-bold text-lg hover:bg-green-700 active:scale-95 transition">
+                                ▶️ Clock In
+                            </button>
+                            
+                            <button @click="clockOut()"
+                                x-show="isClocked && !loadingAction"
+                                class="w-full bg-red-600 text-white py-4 rounded-lg font-bold text-lg hover:bg-red-700 active:scale-95 transition">
+                                ⏹️ Clock Out
+                            </button>
+
+                            <button disabled
+                                x-show="loadingAction"
+                                class="w-full bg-gray-400 text-white py-4 rounded-lg font-bold text-lg">
+                                Processing...
+                            </button>
+
+                            <!-- Session Timer -->
+                            <div x-show="isClocked" class="mt-6 text-center">
+                                <p class="text-sm text-gray-600 mb-2">Session Duration</p>
+                                <p class="text-3xl font-bold text-green-600" x-text="sessionTime"></p>
+                            </div>
+                        </div>
+
+                        <!-- Work Summary -->
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="bg-white rounded-lg p-4 border border-gray-200 text-center">
+                                <p class="text-sm text-gray-600 mb-1">Today</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="todayHours.toFixed(1) + 'h'"></p>
+                                <p class="text-xs text-gray-500">hours</p>
+                            </div>
+                            <div class="bg-white rounded-lg p-4 border border-gray-200 text-center">
+                                <p class="text-sm text-gray-600 mb-1">This Week</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="weeklyHours.toFixed(1) + 'h'"></p>
+                                <p class="text-xs text-gray-500">hours</p>
+                            </div>
+                            <div class="bg-white rounded-lg p-4 border border-gray-200 text-center">
+                                <p class="text-sm text-gray-600 mb-1">This Month</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="monthlyHours.toFixed(1) + 'h'"></p>
+                                <p class="text-xs text-gray-500">hours</p>
+                            </div>
+                        </div>
+
+                        <!-- Offline Status -->
+                        <div x-show="!isOnline" class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+                            <span class="font-semibold">📡 Offline Mode</span> - Changes will be synced when online
+                        </div>
+
+                        <!-- Recent Activity -->
+                        <div class="bg-white rounded-lg p-4 border border-gray-200">
+                            <h3 class="font-semibold text-gray-900 mb-4">📋 Quick Actions</h3>
+                            <div class="space-y-2">
+                                <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-50 text-gray-700 text-sm">
+                                    📝 Submit Report
+                                </button>
+                                <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-50 text-gray-700 text-sm">
+                                    📸 Upload Photo
+                                </button>
+                                <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-50 text-gray-700 text-sm">
+                                    🗣️ Send Message
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Reports View -->
+                    <div x-show="!contentLoading && currentView === 'reports'" class="py-6">
+                        <div class="mb-6">
+                            <h2 class="text-2xl font-bold mb-1">📋 Reports</h2>
+                            <p class="text-gray-600 text-sm">Manage work reports and updates</p>
+                        </div>
+
+                        <button @click="showReportForm = true" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold mb-4 hover:bg-green-700 active:scale-95">
+                            + New Report
+                        </button>
+
+                        <div class="space-y-3">
+                            <template x-for="report in reports" :key="report.id">
+                                <div class="bg-white border border-gray-200 rounded-lg p-4">
+                                    <div class="flex justify-between items-start">
+                                        <div class="flex-1">
+                                            <p class="font-semibold text-gray-900" x-text="report.title"></p>
+                                            <p class="text-sm text-gray-600 mt-1" x-text="report.description"></p>
+                                            <div class="mt-3 flex gap-2 flex-wrap">
+                                                <span class="inline-block text-xs px-2 py-1 rounded"
+                                                    :class="report.status === 'approved' ? 'bg-green-100 text-green-800' : 
+                                             report.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+                                             'bg-gray-100 text-gray-800'"
+                                                    x-text="report.status">
+                                                </span>
+                                                <span class="text-xs text-gray-500" x-text="formatDate(report.created_at)"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                            <template x-if="reports.length === 0">
+                                <div class="text-center py-8 text-gray-500">
+                                    <p class="text-3xl mb-2">📋</p>
+                                    <p>No reports yet</p>
+                                    <p class="text-sm">Create your first report to get started</p>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- History View -->
+                    <div x-show="!contentLoading && currentView === 'history'" class="py-6">
+                        <div class="mb-6">
+                            <h2 class="text-2xl font-bold mb-1">📅 Attendance History</h2>
+                            <p class="text-gray-600 text-sm">Your time tracking records</p>
+                        </div>
+
+                        <div class="space-y-3">
+                            <template x-for="entry in attendanceHistory" :key="entry.id">
+                                <div class="bg-white border border-gray-200 rounded-lg p-4">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <p class="font-semibold text-gray-900" x-text="formatDate(entry.date)"></p>
+                                        <span class="text-sm font-bold text-green-600" x-text="entry.hours.toFixed(1) + 'h'"></span>
+                                    </div>
+                                    <p class="text-sm text-gray-600">
+                                        <span x-text="formatTime(entry.clock_in_time)"></span>
+                                        <span> – </span>
+                                        <span x-text="entry.clock_out_time ? formatTime(entry.clock_out_time) : 'Still working'"></span>
+                                    </p>
+                                    <template x-if="entry.notes">
+                                        <p class="text-sm text-gray-500 mt-2" x-text="entry.notes"></p>
+                                    </template>
+                                </div>
+                            </template>
+                            <template x-if="attendanceHistory.length === 0">
+                                <div class="text-center py-8 text-gray-500">
+                                    <p class="text-3xl mb-2">📅</p>
+                                    <p>No attendance records</p>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Profile View -->
+                    <div x-show="!contentLoading && currentView === 'profile'" class="py-6">
+                        <div class="mb-6">
+                            <h2 class="text-2xl font-bold mb-1">👤 Profile</h2>
+                            <p class="text-gray-600 text-sm">Your account information</p>
+                        </div>
+
+                        <div class="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+                            <div class="text-center pb-4 border-b border-gray-200">
+                                <p class="text-4xl mb-2">👤</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="user?.name"></p>
+                                <p class="text-sm text-gray-600" x-text="user?.email"></p>
+                            </div>
+
+                            <div>
+                                <p class="text-sm text-gray-600">Role</p>
+                                <p class="font-semibold text-gray-900 capitalize" x-text="user?.role"></p>
+                            </div>
+
+                            <div>
+                                <p class="text-sm text-gray-600">Farm</p>
+                                <p class="font-semibold text-gray-900" x-text="user?.farm?.name || 'N/A'"></p>
+                            </div>
+
+                            <div>
+                                <p class="text-sm text-gray-600 mb-2">Account Status</p>
+                                <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800">
+                                    ✓ Active
+                                </span>
+                            </div>
+
+                            <button @click="handleLogout()" class="w-full mt-6 bg-red-600 text-white py-2 rounded-lg font-semibold hover:bg-red-700 active:scale-95">
+                                Logout
+                            </button>
+                        </div>
+                    </div>
+                </main>
+
+                <!-- Bottom Navigation -->
+                <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 max-w-md mx-auto">
+                    <div class="flex justify-around">
+                        <button @click="currentView = 'dashboard'" class="flex-1 py-4 text-center text-sm font-semibold transition"
+                            :class="currentView === 'dashboard' ? 'text-green-600 border-t-2 border-green-600' : 'text-gray-600'">
+                            🏠 Home
+                        </button>
+                        <button @click="currentView = 'reports'" class="flex-1 py-4 text-center text-sm font-semibold transition"
+                            :class="currentView === 'reports' ? 'text-green-600 border-t-2 border-green-600' : 'text-gray-600'">
+                            📋 Reports
+                        </button>
+                        <button @click="currentView = 'history'" class="flex-1 py-4 text-center text-sm font-semibold transition"
+                            :class="currentView === 'history' ? 'text-green-600 border-t-2 border-green-600' : 'text-gray-600'">
+                            📅 History
+                        </button>
+                        <button @click="currentView = 'profile'" class="flex-1 py-4 text-center text-sm font-semibold transition"
+                            :class="currentView === 'profile' ? 'text-green-600 border-t-2 border-green-600' : 'text-gray-600'">
+                            👤 Profile
+                        </button>
+                    </div>
+                </nav>
+            </div>
+        </template>
+    </div>
+
+    <script src="/assets/js/app.js"></script>
+</body>
+</html>

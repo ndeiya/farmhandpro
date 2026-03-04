@@ -1,0 +1,17 @@
+# FarmHandPro - cPanel Shared Hosting Setup
+#
+# This file documents the environment setup for cPanel deployment
+# Not using Docker - deploy directly to cPanel hosting
+#
+# Local Development (XAMPP):
+# - Use XAMPP MySQL and PHP
+# - Place project in htdocs/farmhandpro
+# - Configure .env for local MySQL
+#
+# Production (cPanel):
+# - Use hosting provider's MySQL database
+# - FTP/File Manager to upload files
+# - Use cPanel's Auto Installer or manual setup
+# - Configure .env via cPanel File Manager
+#
+# See deployment/README.md for detailed instructions

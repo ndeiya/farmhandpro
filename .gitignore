@@ -1,0 +1,25 @@
+frontend/.gitignore
+frontend/node_modules/
+frontend/.env.local
+frontend/dist/
+
+backend/vendor/
+backend/.env
+backend/.env.*.php
+backend/storage/logs/*
+backend/bootstrap/cache/*
+backend/database/database.sqlite
+backend.bak
+deployment/ssl/
+deployment/backups/
+
+Implementation plan.md
+UX_UI Creation Guide.md 
+
+.DS_Store
+*.log
+.idea/
+.vscode/
+*.swp
+*.swo
+~*
