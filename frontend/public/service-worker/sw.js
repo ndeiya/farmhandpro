@@ -1,14 +1,12 @@
-const CACHE_NAME = 'farmhandpro-v1';
+const CACHE_NAME = 'farmhandpro-v2';
 const API_CACHE_NAME = 'farmhandpro-api-v1';
+const CDN_ORIGINS = ['https://cdn.tailwindcss.com', 'https://unpkg.com', 'https://cdn.jsdelivr.net'];
 const STATIC_ASSETS = [
     '/',
     '/index.html',
     '/assets/css/style.css',
     '/assets/js/app.js',
     '/manifest.json',
-    'https://cdn.tailwindcss.com',
-    'https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js',
-    'https://cdn.jsdelivr.net/npm/chart.js',
 ];
 
 // Install event - cache static assets
@@ -81,6 +79,12 @@ self.addEventListener('fetch', (event) => {
                     });
                 })
         );
+        return;
+    }
+
+    // CDN resources - network first (bypass cache to avoid stale Tailwind/Alpine)
+    if (CDN_ORIGINS.some(origin => request.url.startsWith(origin))) {
+        event.respondWith(fetch(request));
         return;
     }
 
